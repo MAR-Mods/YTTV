@@ -43,13 +43,13 @@ namespace YTTV
 
         public const string PLUGIN_NAME = "YTTV";
 
-        // Update this to whatever version the mod is? E.g. 1.1.0:
+        // Update this whenever mod version changes
         public const string PLUGIN_VERSION = "1.0.1";
     }
 }
 namespace Television_Controller
 {
-    // Update this to whatever version the mod is? E.g. 1.1.0:
+    // Update this whenever mod version changes
     [BepInPlugin("MARMods.YTTV", "YTTV", "1.0.1")]
     public class Plugin : BaseUnityPlugin
     {
@@ -240,9 +240,9 @@ namespace Television_Controller
 
         public static double totalTime = 0.0;
 
-        public static bool positonSafe = false;
+        public static bool positionSafe = false;
 
-        public static double positonTime = 0.0;
+        public static double positionTime = 0.0;
 
         public static bool isPlayTelevision = false;
 
@@ -556,7 +556,7 @@ namespace Television_Controller
                     }
                     if (Plugin.config.languages.Value.ToLower().Equals("ru"))
                     {
-                        DrawString(__instance, Plugin.config.GetLang().main_5.Value + "\nСоздатель мода KoderTech.\nСпасибо что вы скачали именно этот мод)))", "Television", nameOfUserWhoTyped);
+                        DrawString(__instance, Plugin.config.GetLang().main_5.Value, "Television", nameOfUserWhoTyped);
                     }
                     break;
                 case "tplay":
@@ -641,7 +641,7 @@ namespace Television_Controller
                         tvScript.tvSFX.Stop();
                         LoadingVideo = false;
                         isPlayTelevision = false;
-                        positonTime = 0.0;
+                        positionTime = 0.0;
                         DrawString(__instance, Plugin.config.GetLang().main_8.Value, "Television", nameOfUserWhoTyped);
                     }
                     else
@@ -886,13 +886,13 @@ namespace Television_Controller
                             {
                                 if (vs[1].ToLower() == "true")
                                 {
-                                    positonSafe = true;
+                                    positionSafe = true;
                                 }
                                 if (vs[1].ToLower() == "false")
                                 {
-                                    positonSafe = false;
+                                    positionSafe = false;
                                 }
-                                string text2 = (positonSafe ? "enabled" : "disabled");
+                                string text2 = (positionSafe ? "enabled" : "disabled");
                                 DrawString(__instance, Plugin.config.GetLang().main_13.Value.Replace("@1", text2 ?? ""), "Television", nameOfUserWhoTyped);
                             }
                         }
@@ -900,13 +900,13 @@ namespace Television_Controller
                         {
                             if (vs[1].ToLower() == "true")
                             {
-                                positonSafe = true;
+                                positionSafe = true;
                             }
                             if (vs[1].ToLower() == "false")
                             {
-                                positonSafe = false;
+                                positionSafe = false;
                             }
-                            string text3 = (positonSafe ? "включено" : "выключено");
+                            string text3 = (positionSafe ? "включено" : "выключено");
                             DrawString(__instance, Plugin.config.GetLang().main_13.Value.Replace("@1", text3 ?? ""), "Television", nameOfUserWhoTyped);
                         }
                         break;
@@ -1022,9 +1022,9 @@ namespace Television_Controller
             __instance.tvOn = on;
             if (on)
             {
-                if (positonSafe)
+                if (positionSafe)
                 {
-                    tvScript.video.time = positonTime;
+                    tvScript.video.time = positionTime;
                 }
                 SetTVScreenMaterial(__instance, on: true);
                 __instance.video.Play();
@@ -1034,9 +1034,9 @@ namespace Television_Controller
             }
             else
             {
-                if (positonSafe)
+                if (positionSafe)
                 {
-                    positonTime = tvScript.video.time;
+                    positionTime = tvScript.video.time;
                 }
                 SetTVScreenMaterial(__instance, on: false);
                 __instance.tvSFX.Stop();
@@ -1113,6 +1113,7 @@ namespace Television_Controller
 
         public const string PLUGIN_NAME = "Television_Controller";
 
+        // Update this whenever mod version changes
         public const string PLUGIN_VERSION = "1.0.1";
     }
 }
