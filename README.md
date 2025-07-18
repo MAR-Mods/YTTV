@@ -22,7 +22,7 @@ I used Visual Studio. For the project, I picked Class Library (.NET Framework), 
 <br> <br>
 This is the relevant line of code: `DownloadFiles(new Uri("https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp.exe"), "YTTV\\other\\yt-dlp.exe");`
 <br> <br>
-Here are Google Drive links to [AssemblyInfo.cs](https://drive.google.com/file/d/1VbIKx9IH3FpcHkCWna7MlQiNoihmlCbs/view) and [Plugin.cs](https://drive.google.com/file/d/1LfwW9hCZWgf7-WDP84Hkm7uJ-Q3daeJ6/view), the two files for the source code. I'd put this on GitHub, but I'm a bit lazy...
+Here is the link to the [GitHub repository with the source code](https://github.com/MAR-Mods/YTTV).
 
 ## Credits
 <em> Television Controller </em>
