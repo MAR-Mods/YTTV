@@ -28,7 +28,7 @@ Here are some tips to alleviate this:
 ## How did you make this?
 I used Visual Studio. For the project, I picked Class Library (.NET Framework), and set the framework to .NET Framework 4.8. Essentially all I really did (besides fixing TheByteNinja's decompiled code) was change the link that downloads yt-dlp.exe to be the latest version (in the original mods, these are outdated, hence why they don't work anymore).
 <br> <br>
-Here's the line you should change to update the [yt-dlp](https://github.com/yt-dlp/yt-dlp) version: `DownloadFiles(new Uri("https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp.exe"), "YTTV\\other\\yt-dlp.exe");`
+Here's the line you should change to update the [yt-dlp](https://github.com/yt-dlp/yt-dlp) version: `string expectedVersion = "XXXX.XX.XX";` replace the X's with the yt-dlp release version.
 <br>
 
 ## Credits

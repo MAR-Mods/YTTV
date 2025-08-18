@@ -44,13 +44,13 @@ namespace YTTV
         public const string PLUGIN_NAME = "YTTV";
 
         // Update this whenever mod version changes
-        public const string PLUGIN_VERSION = "1.0.1";
+        public const string PLUGIN_VERSION = "1.0.2";
     }
 }
 namespace Television_Controller
 {
     // Update this whenever mod version changes
-    [BepInPlugin("MARMods.YTTV", "YTTV", "1.0.1")]
+    [BepInPlugin("MARMods.YTTV", "YTTV", "1.0.2")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin instance;
@@ -97,13 +97,51 @@ namespace Television_Controller
                 {
                 }
             }
-            if (!File.Exists("YTTV\\other\\yt-dlp.exe"))
+
+            /*
+            // Force mod to always re-download yt-dlp to replace previous exe
+            new Thread((ThreadStart)delegate
             {
-                new Thread((ThreadStart)delegate
+                DownloadFiles(new Uri("https://github.com/yt-dlp/yt-dlp/releases/download/2025.08.11/yt-dlp.exe"), "YTTV\\other\\yt-dlp.exe");
+            }).Start();
+            */
+
+            string exePath = Path.Combine("YTTV", "other", "yt-dlp.exe");
+            string versionPath = Path.Combine("YTTV", "other", "yt-dlp.version");
+            string expectedVersion = "2025.08.11";
+
+            bool needsUpdate = true;
+
+            if (File.Exists(exePath) && File.Exists(versionPath))
+            {
+                string localVersion = File.ReadAllText(versionPath).Trim();
+                if (localVersion == expectedVersion)
+                    needsUpdate = false;
+            }
+
+            if (needsUpdate)
+            {
+                new Thread(() =>
                 {
-                    DownloadFiles(new Uri("https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp.exe"), "YTTV\\other\\yt-dlp.exe");
+                    try
+                    {
+                        // Download yt-dlp.exe
+                        DownloadFiles(
+                            new Uri($"https://github.com/yt-dlp/yt-dlp/releases/download/{expectedVersion}/yt-dlp.exe"),
+                            exePath
+                        );
+
+                        // Only write the version file if the exe exists after download
+                        if (File.Exists(exePath))
+                            File.WriteAllText(versionPath, expectedVersion);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogError($"Failed to download yt-dlp.exe: {e.Message}");
+                    }
                 }).Start();
             }
+
             HarmonyLib = new Harmony("com.marmods.YTTV");
             HarmonyLib.PatchAll(typeof(YTTV));
         }
@@ -1114,7 +1152,7 @@ namespace Television_Controller
         public const string PLUGIN_NAME = "Television_Controller";
 
         // Update this whenever mod version changes
-        public const string PLUGIN_VERSION = "1.0.1";
+        public const string PLUGIN_VERSION = "1.0.2";
     }
 }
 namespace System.Runtime.CompilerServices
