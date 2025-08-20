@@ -1,3 +1,6 @@
+## 1.0.3
+- Updated to use yt-dlp 2025.08.20. Last version broke right after I uploaded it because the old yt-dlp version no longer works...
+
 ## 1.0.2
 - Updated to use latest version of yt-dlp; fixed mod so that it ACTUALLY updates yt-dlp.exe
 
