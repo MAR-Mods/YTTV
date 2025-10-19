@@ -1,3 +1,6 @@
+## 1.0.4
+- Updated to use yt-dlp 2025.10.14. Sorry it took me so long, I've been very busy...
+
 ## 1.0.3
 - Updated to use yt-dlp 2025.08.20. Last version broke right after I uploaded it because the old yt-dlp version no longer works...
 

@@ -44,13 +44,13 @@ namespace YTTV
         public const string PLUGIN_NAME = "YTTV";
 
         // Update this whenever mod version changes
-        public const string PLUGIN_VERSION = "1.0.3";
+        public const string PLUGIN_VERSION = "1.0.4";
     }
 }
 namespace Television_Controller
 {
     // Update this whenever mod version changes
-    [BepInPlugin("MARMods.YTTV", "YTTV", "1.0.3")]
+    [BepInPlugin("MARMods.YTTV", "YTTV", "1.0.4")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin instance;
@@ -108,7 +108,7 @@ namespace Television_Controller
 
             string exePath = Path.Combine("YTTV", "other", "yt-dlp.exe");
             string versionPath = Path.Combine("YTTV", "other", "yt-dlp.version");
-            string expectedVersion = "2025.08.20";
+            string expectedVersion = "2025.10.14";
 
             bool needsUpdate = true;
 
@@ -1152,7 +1152,7 @@ namespace Television_Controller
         public const string PLUGIN_NAME = "Television_Controller";
 
         // Update this whenever mod version changes
-        public const string PLUGIN_VERSION = "1.0.3";
+        public const string PLUGIN_VERSION = "1.0.4";
     }
 }
 namespace System.Runtime.CompilerServices
