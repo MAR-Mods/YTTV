@@ -44,13 +44,13 @@ namespace YTTV
         public const string PLUGIN_NAME = "YTTV";
 
         // Update this whenever mod version changes
-        public const string PLUGIN_VERSION = "1.0.4";
+        public const string PLUGIN_VERSION = "1.0.5";
     }
 }
 namespace Television_Controller
 {
     // Update this whenever mod version changes
-    [BepInPlugin("MARMods.YTTV", "YTTV", "1.0.4")]
+    [BepInPlugin("MARMods.YTTV", "YTTV", "1.0.5")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin instance;
@@ -108,7 +108,7 @@ namespace Television_Controller
 
             string exePath = Path.Combine("YTTV", "other", "yt-dlp.exe");
             string versionPath = Path.Combine("YTTV", "other", "yt-dlp.version");
-            string expectedVersion = "2025.10.14";
+            string expectedVersion = "2025.10.22";
 
             bool needsUpdate = true;
 
@@ -628,7 +628,9 @@ namespace Television_Controller
                             Process process = new Process();
                             process.StartInfo.FileName = "YTTV\\other\\yt-dlp.exe";
                             process.StartInfo.UseShellExecute = false;
-                            process.StartInfo.Arguments = "--cookies \"cookies.txt\" -f \"[height <=360][ext = mp4] / wv[ext = mp4]\" --extractor-args \"youtube:player_client = tv\" --force-ipv4 -N 16 " + vs[1] + " -o test.%(ext)s";
+                            //process.StartInfo.Arguments = "--cookies \"cookies.txt\" -f \"[height <=360][ext = mp4] / wv[ext = mp4]\" --extractor-args \"youtube:player_client = tv\" --force-ipv4 -N 16 " + vs[1] + " -o test.%(ext)s";
+                            // FIXED FOR 1.0.5:
+                            process.StartInfo.Arguments = "--cookies \"cookies.txt\" -f \"[height <=360][ext = mp4] / wv[ext = mp4]\" --force-ipv4 -N 16 " + vs[1] + " -o test.%(ext)s";
                             process.StartInfo.WorkingDirectory = "YTTV\\other";
                             process.StartInfo.CreateNoWindow = true;
                             process.Start();
@@ -1152,7 +1154,7 @@ namespace Television_Controller
         public const string PLUGIN_NAME = "Television_Controller";
 
         // Update this whenever mod version changes
-        public const string PLUGIN_VERSION = "1.0.4";
+        public const string PLUGIN_VERSION = "1.0.5";
     }
 }
 namespace System.Runtime.CompilerServices
