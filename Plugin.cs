@@ -31,116 +31,87 @@ using Object = UnityEngine.Object;
 [assembly: CompilationRelaxations(8)]
 [assembly: RuntimeCompatibility(WrapNonExceptionThrows = true)]
 [assembly: Debuggable(DebuggableAttribute.DebuggingModes.IgnoreSymbolStoreSequencePoints)]
-//[assembly: TargetFramework(".NETStandard,Version=v2.1", FrameworkDisplayName = ".NET Standard 2.1")]
-//[assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
 [module: UnverifiableCode]
-//[module: RefSafetyRules(11)]
+
 namespace YTTV
 {
     public static class PluginInfo
     {
         public const string PLUGIN_GUID = "MARMods.YTTV";
-
         public const string PLUGIN_NAME = "YTTV";
-
-        // Update this whenever mod version changes
-        public const string PLUGIN_VERSION = "1.0.5";
+        public const string PLUGIN_VERSION = "1.1.0";
     }
 }
+
 namespace Television_Controller
 {
-    // Update this whenever mod version changes
-    [BepInPlugin("MARMods.YTTV", "YTTV", "1.0.5")]
+    [BepInPlugin("MARMods.YTTV", "YTTV", "1.1.0")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin instance;
-
         private static Harmony HarmonyLib;
-
         public static Configs config;
 
         private void Awake()
         {
-            //IL_011b: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0125: Expected O, but got Unknown
             instance = this;
             config = new Configs();
             config.GetConfig();
+
             string text = config.languages.Value.ToLower();
-            if (!(text == "ru"))
-            {
-                if (text == "en")
-                {
-                    config.GetLang().GetConfigEN();
-                }
-            }
-            else
-            {
-                config.GetLang().GetConfigRU();
-            }
+            if (text == "en") config.GetLang().GetConfigEN();
+            else if (text == "ru") config.GetLang().GetConfigRU();
+            else config.GetLang().GetConfigEN();
+
             WriteLogo();
-            if (!Directory.Exists("YTTV\\lang"))
-            {
-                Directory.CreateDirectory("YTTV\\lang");
-            }
-            if (!Directory.Exists("YTTV\\other"))
-            {
-                Directory.CreateDirectory("YTTV\\other");
-            }
-            if (File.Exists("YTTV\\other\\test.mp4"))
-            {
-                File.Delete("YTTV\\other\\test.mp4");
-            }
+
+            if (!Directory.Exists("YTTV\\lang")) Directory.CreateDirectory("YTTV\\lang");
+            if (!Directory.Exists("YTTV\\other")) Directory.CreateDirectory("YTTV\\other");
+
+            if (File.Exists("YTTV\\other\\test.mp4")) File.Delete("YTTV\\other\\test.mp4");
             if (!File.Exists("YTTV\\cache"))
             {
-                using (StreamWriter streamWriter = File.CreateText("YTTV\\cache"))
-                {
-                }
+                using (StreamWriter streamWriter = File.CreateText("YTTV\\cache")) { }
             }
 
-            /*
-            // Force mod to always re-download yt-dlp to replace previous exe
-            new Thread((ThreadStart)delegate
-            {
-                DownloadFiles(new Uri("https://github.com/yt-dlp/yt-dlp/releases/download/2025.08.11/yt-dlp.exe"), "YTTV\\other\\yt-dlp.exe");
-            }).Start();
-            */
-
-            string exePath = Path.Combine("YTTV", "other", "yt-dlp.exe");
+            string ytDlpPath = Path.Combine("YTTV", "other", "yt-dlp.exe");
             string versionPath = Path.Combine("YTTV", "other", "yt-dlp.version");
-            string expectedVersion = "2025.10.22";
+            string expectedVersion = "2025.12.08";
 
-            bool needsUpdate = true;
-
-            if (File.Exists(exePath) && File.Exists(versionPath))
+            new Thread(() =>
             {
-                string localVersion = File.ReadAllText(versionPath).Trim();
-                if (localVersion == expectedVersion)
-                    needsUpdate = false;
-            }
-
-            if (needsUpdate)
-            {
-                new Thread(() =>
+                try
                 {
-                    try
+                    bool needsUpdate = true;
+                    if (File.Exists(ytDlpPath) && File.Exists(versionPath))
                     {
-                        // Download yt-dlp.exe
-                        DownloadFiles(
+                        string localVersion = File.ReadAllText(versionPath).Trim();
+                        if (localVersion == expectedVersion)
+                            needsUpdate = false;
+                    }
+
+                    if (needsUpdate)
+                    {
+                        Logger.LogInfo($"YTTV: Downloading yt-dlp version {expectedVersion}...");
+                        // 404 FIX: Removed the broken FFmpeg download. 
+                        // yt-dlp download below is valid for version 2025.12.08.
+                        DownloadFileSync(
                             new Uri($"https://github.com/yt-dlp/yt-dlp/releases/download/{expectedVersion}/yt-dlp.exe"),
-                            exePath
+                            ytDlpPath
                         );
 
-                        // Only write the version file if the exe exists after download
-                        if (File.Exists(exePath))
+                        if (File.Exists(ytDlpPath))
                             File.WriteAllText(versionPath, expectedVersion);
                     }
-                    catch (Exception e)
-                    {
-                        Logger.LogError($"Failed to download yt-dlp.exe: {e.Message}");
-                    }
-                }).Start();
-            }
+
+                    Logger.LogInfo("YTTV: Ready.");
+                }
+                catch (Exception e)
+                {
+                    // This logs the error but keeps the mod alive
+                    Logger.LogError($"YTTV: Update failed (Check Internet/VPN): {e.Message}");
+                }
+            }).Start();
 
             HarmonyLib = new Harmony("com.marmods.YTTV");
             HarmonyLib.PatchAll(typeof(YTTV));
@@ -149,6 +120,26 @@ namespace Television_Controller
         public void WriteLogo()
         {
             Logger.LogInfo((object)"YTTV Loaded!");
+        }
+
+        public static void DownloadFileSync(Uri uri, string filename)
+        {
+            try
+            {
+                // Deletes partial download if it exists to prevent corruption
+                if (File.Exists(filename)) File.Delete(filename);
+
+                using (WebClient webClient = new WebClient())
+                {
+                    // Basic headers to pretend to be a browser (helps prevent some 403s)
+                    webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                    webClient.DownloadFile(uri, filename);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
         }
 
         public static void DownloadFiles(Uri uri, string filename)
@@ -168,89 +159,72 @@ namespace Television_Controller
             Logger.LogInfo(message);
         }
     }
+
     public class Configs
     {
         public class Lang
         {
             public ConfigEntry<string> main_1;
-
             public ConfigEntry<string> main_2;
-
             public ConfigEntry<string> main_3;
-
             public ConfigEntry<string> main_4;
-
             public ConfigEntry<string> main_5;
-
             public ConfigEntry<string> main_6;
-
             public ConfigEntry<string> main_7;
-
             public ConfigEntry<string> main_8;
-
             public ConfigEntry<string> main_9;
-
             public ConfigEntry<string> main_10;
-
             public ConfigEntry<string> main_11;
-
             public ConfigEntry<string> main_12;
-
             public ConfigEntry<string> main_13;
 
             public void GetConfigRU()
             {
-                //IL_0006: Unknown result type (might be due to invalid IL or missing references)
-                //IL_000c: Expected O, but got Unknown
                 ConfigFile val = new ConfigFile("YTTV\\lang\\television_ru.cfg", true);
-                main_1 = val.Bind<string>("General", "Main_1", "Пожалуйста, подождите, загружаются дополнительные библиотеки, чтобы модификация заработала.", (ConfigDescription)null);
+                main_1 = val.Bind<string>("General", "Main_1", "Пожалуйста, подождите, загружаются дополнительные библиотеки...", (ConfigDescription)null);
                 main_2 = val.Bind<string>("General", "Main_2", "Включить/Выключить Телевизор : [E]\n@2 - @3\n@1 громкость\nУвеличить громкость [PU]\nУменьшить громкость [PG]", (ConfigDescription)null);
-                main_3 = val.Bind<string>("General", "Main_3", "Все дополнительные библиотеки загружены, теперь вы можете использовать команды для телевизора.", (ConfigDescription)null);
-                main_4 = val.Bind<string>("General", "Main_4", "Подождите, видео еще загружается!", (ConfigDescription)null);
-                main_5 = val.Bind<string>("General", "Main_5", "Команды:\n/tplay - Проиграть видео\n/ttime - Поставить позицию видео\n/treset - Сбросить позцию видео вначало\n/tposition - Включить/Выключить запоминания позиции после выключение телевизора\n/tvolume - Изменить громкость видео", (ConfigDescription)null);
-                main_6 = val.Bind<string>("General", "Main_6", "Введите правильный URL-адрес!", (ConfigDescription)null);
+                main_3 = val.Bind<string>("General", "Main_3", "Библиотеки загружены.", (ConfigDescription)null);
+                main_4 = val.Bind<string>("General", "Main_4", "Видео загружается!", (ConfigDescription)null);
+                main_5 = val.Bind<string>("General", "Main_5", "Команды:\n/tplay - Проиграть\n/ttime - Время\n/treset - Сброс\n/tposition - Позиция\n/tvolume - Громкость", (ConfigDescription)null);
+                main_6 = val.Bind<string>("General", "Main_6", "Неверный URL!", (ConfigDescription)null);
                 main_7 = val.Bind<string>("General", "Main_7", "Пожалуйста подождите...", (ConfigDescription)null);
-                main_8 = val.Bind<string>("General", "Main_8", "Видео был загружен в телевизор", (ConfigDescription)null);
-                main_9 = val.Bind<string>("General", "Main_9", "@1 изменил громкость видео @2", (ConfigDescription)null);
-                main_10 = val.Bind<string>("General", "Main_10", "Введите правильную громкость видео (пример: 0, 10, 20, 30...)!", (ConfigDescription)null);
+                main_8 = val.Bind<string>("General", "Main_8", "Видео готово", (ConfigDescription)null);
+                main_9 = val.Bind<string>("General", "Main_9", "@1 изменил громкость @2", (ConfigDescription)null);
+                main_10 = val.Bind<string>("General", "Main_10", "Неверная громкость!", (ConfigDescription)null);
                 main_11 = val.Bind<string>("General", "Main_11", "Ссылка недействительная!", (ConfigDescription)null);
-                main_12 = val.Bind<string>("General", "Main_12", "Позиция видео изменена на @1!", (ConfigDescription)null);
-                main_13 = val.Bind<string>("General", "Main_13", "Запоминание позиции @1!", (ConfigDescription)null);
+                main_12 = val.Bind<string>("General", "Main_12", "Позиция: @1", (ConfigDescription)null);
+                main_13 = val.Bind<string>("General", "Main_13", "Запоминание: @1", (ConfigDescription)null);
             }
 
             public void GetConfigEN()
             {
-                //IL_0006: Unknown result type (might be due to invalid IL or missing references)
-                //IL_000c: Expected O, but got Unknown
                 ConfigFile val = new ConfigFile("YTTV\\lang\\television_en.cfg", true);
-                main_1 = val.Bind<string>("General", "Main_1", "Please wait, additional libraries are being loaded for the modification to work.", (ConfigDescription)null);
-                main_2 = val.Bind<string>("General", "Main_2", "Enable/Disable Television : [E]\n@2 - @3\n@1 volume\nIncrease volume [PU]\nDecrease volume [PG]", (ConfigDescription)null);
-                main_3 = val.Bind<string>("General", "Main_3", "All libraries have loaded, now you can use the television commands.", (ConfigDescription)null);
-                main_4 = val.Bind<string>("General", "Main_4", "Another video is being uploaded to the television!", (ConfigDescription)null);
-                main_5 = val.Bind<string>("General", "Main_5", "/tplay [LINK] - Play video from this link\n/ttime [TIMESTAMP] - Set video to this timestamp\n/treset - Restart video\n/tposition [TRUE/FALSE] - Toggle if video resets on TV on/off\n/tvolume [0-100] - Set TV volume to this percentage", (ConfigDescription)null);
-                main_6 = val.Bind<string>("General", "Main_6", "Enter the correct URL!", (ConfigDescription)null);
+                main_1 = val.Bind<string>("General", "Main_1", "Please wait, downloading libraries...", (ConfigDescription)null);
+                main_2 = val.Bind<string>("General", "Main_2", "Toggle TV : [E]\n@2 - @3\n@1 volume\nVol Up [PG UP]\nVol Down [PG DN]", (ConfigDescription)null);
+                main_3 = val.Bind<string>("General", "Main_3", "Libraries loaded.", (ConfigDescription)null);
+                main_4 = val.Bind<string>("General", "Main_4", "Video is loading!", (ConfigDescription)null);
+                main_5 = val.Bind<string>("General", "Main_5", "/tplay [LINK]\n/ttime [TIME]\n/treset\n/tposition [BOOL]\n/tvolume [0-100]", (ConfigDescription)null);
+                main_6 = val.Bind<string>("General", "Main_6", "Invalid URL!", (ConfigDescription)null);
                 main_7 = val.Bind<string>("General", "Main_7", "Please wait...", (ConfigDescription)null);
-                main_8 = val.Bind<string>("General", "Main_8", "The video was uploaded to the television", (ConfigDescription)null);
-                main_9 = val.Bind<string>("General", "Main_9", "@1 changed the volume @2 of the television.", (ConfigDescription)null);
-                main_10 = val.Bind<string>("General", "Main_10", "Enter the correct Volume (example: 0, 10, 20, 30...)!", (ConfigDescription)null);
+                main_8 = val.Bind<string>("General", "Main_8", "Video loaded.", (ConfigDescription)null);
+                main_9 = val.Bind<string>("General", "Main_9", "@1 set volume to @2", (ConfigDescription)null);
+                main_10 = val.Bind<string>("General", "Main_10", "Invalid Volume!", (ConfigDescription)null);
                 main_11 = val.Bind<string>("General", "Main_11", "Link is invalid!", (ConfigDescription)null);
-                main_12 = val.Bind<string>("General", "Main_12", "Video position changed to @1!", (ConfigDescription)null);
-                main_13 = val.Bind<string>("General", "Main_13", "Position memorization is @1!", (ConfigDescription)null);
+                main_12 = val.Bind<string>("General", "Main_12", "Time: @1", (ConfigDescription)null);
+                main_13 = val.Bind<string>("General", "Main_13", "Memory: @1", (ConfigDescription)null);
             }
         }
 
         public ConfigEntry<bool> requstbattery;
-
         public ConfigEntry<string> languages;
-
         public static Lang lang = new Lang();
 
         public void GetConfig()
         {
-            //IL_0006: Unknown result type (might be due to invalid IL or missing references)
-            //IL_000c: Expected O, but got Unknown
-            ConfigFile val = new ConfigFile("YTTV\\television_controller.cfg", true);
-            languages = val.Bind<string>("General", "Languages", "en", "EN/RU/AR");
+            // CHANGED: Now uses BepInEx.Paths.ConfigPath to save to BepInEx/config/YTTV.cfg
+            string configPath = Path.Combine(Paths.ConfigPath, "YTTV.cfg");
+            ConfigFile val = new ConfigFile(configPath, true);
+            languages = val.Bind<string>("General", "Languages", "en", "en = English, ru = Русский");
         }
 
         public Lang GetLang()
@@ -258,80 +232,27 @@ namespace Television_Controller
             return lang;
         }
     }
+
     public class YTTV
     {
         public static TVScript tvScript = new TVScript();
-
         public static InteractTrigger tigger = new InteractTrigger();
-
         public static string LastMessage;
-
         public static bool LoadingVideo = false;
-
         public static bool LoadingLibrary = false;
-
         public static string LastnameOfUserWhoTyped;
-
         public static string Lastname;
-
         public static double curretTime = 0.0;
-
         public static double totalTime = 0.0;
-
         public static bool positionSafe = false;
-
         public static double positionTime = 0.0;
-
         public static bool isPlayTelevision = false;
-
         public static double volumeMain = 0.0;
 
         [HarmonyPatch(typeof(PlayerControllerB), "SetHoverTipAndCurrentInteractTrigger")]
         [HarmonyPrefix]
         public static bool SetHoverTipAndCurrentInteractTrigger(PlayerControllerB __instance, ref RaycastHit ___hit, ref Ray ___interactRay, ref int ___playerMask, ref int ___interactableObjectsMask)
         {
-            //IL_0017: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0027: Unknown result type (might be due to invalid IL or missing references)
-            //IL_002c: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0031: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0037: Unknown result type (might be due to invalid IL or missing references)
-            //IL_058d: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0598: Expected O, but got Unknown
-            //IL_0051: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0056: Unknown result type (might be due to invalid IL or missing references)
-            //IL_006f: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0074: Unknown result type (might be due to invalid IL or missing references)
-            //IL_066a: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0093: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0098: Unknown result type (might be due to invalid IL or missing references)
-            //IL_00aa: Unknown result type (might be due to invalid IL or missing references)
-            //IL_00b5: Expected O, but got Unknown
-            //IL_067f: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0684: Unknown result type (might be due to invalid IL or missing references)
-            //IL_069a: Unknown result type (might be due to invalid IL or missing references)
-            //IL_06a5: Expected O, but got Unknown
-            //IL_04c3: Unknown result type (might be due to invalid IL or missing references)
-            //IL_04c8: Unknown result type (might be due to invalid IL or missing references)
-            //IL_00bb: Unknown result type (might be due to invalid IL or missing references)
-            //IL_00c0: Unknown result type (might be due to invalid IL or missing references)
-            //IL_051f: Unknown result type (might be due to invalid IL or missing references)
-            //IL_052a: Expected O, but got Unknown
-            //IL_033e: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0343: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0359: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0364: Unknown result type (might be due to invalid IL or missing references)
-            //IL_036e: Expected O, but got Unknown
-            //IL_036e: Expected O, but got Unknown
-            //IL_00f0: Unknown result type (might be due to invalid IL or missing references)
-            //IL_00fb: Expected O, but got Unknown
-            //IL_0500: Unknown result type (might be due to invalid IL or missing references)
-            //IL_050b: Expected O, but got Unknown
-            //IL_0391: Unknown result type (might be due to invalid IL or missing references)
-            //IL_039c: Expected O, but got Unknown
-            //IL_0376: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0381: Expected O, but got Unknown
-            //IL_03d1: Unknown result type (might be due to invalid IL or missing references)
-            //IL_03dc: Expected O, but got Unknown
             RaycastHit val;
             if (!__instance.isGrabbingObjectAnimation)
             {
@@ -495,14 +416,11 @@ namespace Television_Controller
         public static void ChangeVolume(StreamWriter streamWriter)
         {
             streamWriter.WriteLine(volumeMain.ToString());
+            streamWriter.Close();
         }
 
         public static int FirstEmptyItemSlot(PlayerControllerB __instance)
         {
-            //IL_000f: Unknown result type (might be due to invalid IL or missing references)
-            //IL_001a: Expected O, but got Unknown
-            //IL_0031: Unknown result type (might be due to invalid IL or missing references)
-            //IL_003c: Expected O, but got Unknown
             int result = -1;
             if ((Object)__instance.ItemSlots[__instance.currentItemSlot] == (Object)null)
             {
@@ -588,20 +506,13 @@ namespace Television_Controller
             switch (vs[0].Replace("/", ""))
             {
                 case "thelp":
-                    if (Plugin.config.languages.Value.ToLower().Equals("en"))
-                    {
-                        DrawString(__instance, Plugin.config.GetLang().main_5.Value, "Television", nameOfUserWhoTyped);
-                    }
-                    if (Plugin.config.languages.Value.ToLower().Equals("ru"))
-                    {
-                        DrawString(__instance, Plugin.config.GetLang().main_5.Value, "Television", nameOfUserWhoTyped);
-                    }
+                    DrawString(__instance, Plugin.config.GetLang().main_5.Value, "Television", nameOfUserWhoTyped);
                     break;
                 case "tplay":
                     if (new Regex("^https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)$").IsMatch(vs[1]))
                     {
                         string text4 = vs[1].Remove(0, 8);
-                        if (!(text4.Substring(0, text4.IndexOf('/')) == "www.youtube.com"))
+                        if (!(text4.Contains("youtube.com") || text4.Contains("youtu.be")))
                         {
                             break;
                         }
@@ -621,6 +532,7 @@ namespace Television_Controller
                             break;
                         }
                         isPlayTelevision = true;
+
                         await Task.Run(delegate
                         {
                             bool flag = false;
@@ -628,12 +540,15 @@ namespace Television_Controller
                             Process process = new Process();
                             process.StartInfo.FileName = "YTTV\\other\\yt-dlp.exe";
                             process.StartInfo.UseShellExecute = false;
-                            //process.StartInfo.Arguments = "--cookies \"cookies.txt\" -f \"[height <=360][ext = mp4] / wv[ext = mp4]\" --extractor-args \"youtube:player_client = tv\" --force-ipv4 -N 16 " + vs[1] + " -o test.%(ext)s";
-                            // FIXED FOR 1.0.5:
-                            process.StartInfo.Arguments = "--cookies \"cookies.txt\" -f \"[height <=360][ext = mp4] / wv[ext = mp4]\" --force-ipv4 -N 16 " + vs[1] + " -o test.%(ext)s";
+
+                            // ARGUMENT UPDATE:
+                            // The "/b[ext=mp4]" part is the fallback that allows this to work without FFmpeg.
+                            process.StartInfo.Arguments = "--cookies \"cookies.txt\" -f \"bv*[height<=360][ext=mp4]+ba[ext=m4a]/b[height<=360][ext=mp4]/b[ext=mp4]\" --force-ipv4 -N 4 " + vs[1] + " -o test.%(ext)s";
+
                             process.StartInfo.WorkingDirectory = "YTTV\\other";
                             process.StartInfo.CreateNoWindow = true;
                             process.Start();
+
                             while (!flag)
                             {
                                 if (flag2)
@@ -644,7 +559,7 @@ namespace Television_Controller
                                         break;
                                     }
                                 }
-                                else if (Process.GetProcessById(process.Id).HasExited)
+                                else if (process.HasExited)
                                 {
                                     if (File.Exists("YTTV\\other\\test.mp4.part") || File.Exists("YTTV\\other\\test.mp4"))
                                     {
@@ -659,11 +574,13 @@ namespace Television_Controller
                                 Thread.Sleep(1000);
                             }
                         });
+
                         if (!File.Exists("YTTV\\other\\test.mp4"))
                         {
                             LoadingVideo = false;
                             break;
                         }
+
                         if (tvScript.tvOn)
                         {
                             tvScript.tvOn = false;
@@ -696,222 +613,29 @@ namespace Television_Controller
                         {
                             case 2:
                                 {
-                                    if (!tvScript.tvOn)
-                                    {
-                                        break;
-                                    }
+                                    if (!tvScript.tvOn) break;
                                     int num10 = Convert.ToInt32(array[0]);
                                     int num11 = Convert.ToInt32(array[1]);
-                                    switch (num10)
+                                    if (num10 == 0)
                                     {
-                                        case 0:
-                                            switch (num11)
-                                            {
-                                                case 0:
-                                                    tvScript.video.time = 0.0;
-                                                    DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", "00:00:00"), "Television", nameOfUserWhoTyped);
-                                                    break;
-                                                case 1:
-                                                case 2:
-                                                case 3:
-                                                case 4:
-                                                case 5:
-                                                case 6:
-                                                case 7:
-                                                case 8:
-                                                case 9:
-                                                case 10:
-                                                case 11:
-                                                case 12:
-                                                case 13:
-                                                case 14:
-                                                case 15:
-                                                case 16:
-                                                case 17:
-                                                case 18:
-                                                case 19:
-                                                case 20:
-                                                case 21:
-                                                case 22:
-                                                case 23:
-                                                case 24:
-                                                case 25:
-                                                case 26:
-                                                case 27:
-                                                case 28:
-                                                case 29:
-                                                case 30:
-                                                case 31:
-                                                case 32:
-                                                case 33:
-                                                case 34:
-                                                case 35:
-                                                case 36:
-                                                case 37:
-                                                case 38:
-                                                case 39:
-                                                case 40:
-                                                case 41:
-                                                case 42:
-                                                case 43:
-                                                case 44:
-                                                case 45:
-                                                case 46:
-                                                case 47:
-                                                case 48:
-                                                case 49:
-                                                case 50:
-                                                case 51:
-                                                case 52:
-                                                case 53:
-                                                case 54:
-                                                case 55:
-                                                case 56:
-                                                case 57:
-                                                case 58:
-                                                case 59:
-                                                    tvScript.video.time = num11;
-                                                    DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", "00:00:" + num11.ToString("00")), "Television", nameOfUserWhoTyped);
-                                                    break;
-                                            }
-                                            break;
-                                        case 1:
-                                        case 2:
-                                        case 3:
-                                        case 4:
-                                        case 5:
-                                        case 6:
-                                        case 7:
-                                        case 8:
-                                        case 9:
-                                        case 10:
-                                        case 11:
-                                        case 12:
-                                        case 13:
-                                        case 14:
-                                        case 15:
-                                        case 16:
-                                        case 17:
-                                        case 18:
-                                        case 19:
-                                        case 20:
-                                        case 21:
-                                        case 22:
-                                        case 23:
-                                        case 24:
-                                        case 25:
-                                        case 26:
-                                        case 27:
-                                        case 28:
-                                        case 29:
-                                        case 30:
-                                        case 31:
-                                        case 32:
-                                        case 33:
-                                        case 34:
-                                        case 35:
-                                        case 36:
-                                        case 37:
-                                        case 38:
-                                        case 39:
-                                        case 40:
-                                        case 41:
-                                        case 42:
-                                        case 43:
-                                        case 44:
-                                        case 45:
-                                        case 46:
-                                        case 47:
-                                        case 48:
-                                        case 49:
-                                        case 50:
-                                        case 51:
-                                        case 52:
-                                        case 53:
-                                        case 54:
-                                        case 55:
-                                        case 56:
-                                        case 57:
-                                        case 58:
-                                        case 59:
-                                            {
-                                                int num12 = num10 * 60;
-                                                if (num11 > 0 && num11 < 60)
-                                                {
-                                                    int num13 = num12 + num11;
-                                                    tvScript.video.time = num13;
-                                                    DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", "00:" + num10.ToString("00") + ":" + num11.ToString("00")), "Television", nameOfUserWhoTyped);
-                                                }
-                                                else
-                                                {
-                                                    tvScript.video.time = num12;
-                                                    DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", "00:" + num10.ToString("00") + ":00"), "Television", nameOfUserWhoTyped);
-                                                }
-                                                break;
-                                            }
+                                        tvScript.video.time = num11;
+                                        DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", $"00:00:{num11:00}"), "Television", nameOfUserWhoTyped);
+                                    }
+                                    else
+                                    {
+                                        tvScript.video.time = (num10 * 60) + num11;
+                                        DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", $"00:{num10:00}:{num11:00}"), "Television", nameOfUserWhoTyped);
                                     }
                                     break;
                                 }
                             case 3:
                                 {
-                                    if (!tvScript.tvOn)
-                                    {
-                                        break;
-                                    }
+                                    if (!tvScript.tvOn) break;
                                     int num2 = Convert.ToInt32(array[0]);
                                     int num3 = Convert.ToInt32(array[1]);
                                     int num4 = Convert.ToInt32(array[2]);
-                                    switch (num2)
-                                    {
-                                        case 0:
-                                            if (num3 == 0 && num4 == 0)
-                                            {
-                                                tvScript.video.time = 0.0;
-                                                DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", "00:00:00"), "Television", nameOfUserWhoTyped);
-                                            }
-                                            else if (num3 > 0 && num3 < 60)
-                                            {
-                                                int num8 = num3 * 60;
-                                                if (num4 > 0 && num4 < 60)
-                                                {
-                                                    int num9 = num8 + num4;
-                                                    tvScript.video.time = num9;
-                                                    DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", "00:" + num3.ToString("00") + ":" + num4.ToString("00")), "Television", nameOfUserWhoTyped);
-                                                }
-                                                else
-                                                {
-                                                    tvScript.video.time = num8;
-                                                    DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", "00:" + num3.ToString("00") + ":00"), "Television", nameOfUserWhoTyped);
-                                                }
-                                            }
-                                            break;
-                                        case 1:
-                                        case 2:
-                                            {
-                                                int num5 = num2 * 3600;
-                                                if (num3 > 0 && num3 < 60)
-                                                {
-                                                    int num6 = num5 + num3 * 60;
-                                                    if (num4 > 0 && num4 < 60)
-                                                    {
-                                                        int num7 = num6 + num4;
-                                                        tvScript.video.time = num7;
-                                                        DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", num2.ToString("00") + ":" + num3.ToString("00") + ":" + num4.ToString("00")), "Television", nameOfUserWhoTyped);
-                                                    }
-                                                    else
-                                                    {
-                                                        tvScript.video.time = num6;
-                                                        DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", num2.ToString("00") + ":" + num3.ToString("00") + ":00"), "Television", nameOfUserWhoTyped);
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    tvScript.video.time = num5;
-                                                    DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", num2.ToString("00") + ":00:00"), "Television", nameOfUserWhoTyped);
-                                                }
-                                                break;
-                                            }
-                                    }
+                                    tvScript.video.time = (num2 * 3600) + (num3 * 60) + num4;
+                                    DrawString(__instance, Plugin.config.GetLang().main_12.Value.Replace("@1", $"{num2:00}:{num3:00}:{num4:00}"), "Television", nameOfUserWhoTyped);
                                     break;
                                 }
                         }
@@ -919,36 +643,10 @@ namespace Television_Controller
                     }
                 case "tposition":
                     {
-                        string text = Plugin.config.languages.Value.ToLower();
-                        if (!(text == "ru"))
-                        {
-                            if (text == "en")
-                            {
-                                if (vs[1].ToLower() == "true")
-                                {
-                                    positionSafe = true;
-                                }
-                                if (vs[1].ToLower() == "false")
-                                {
-                                    positionSafe = false;
-                                }
-                                string text2 = (positionSafe ? "enabled" : "disabled");
-                                DrawString(__instance, Plugin.config.GetLang().main_13.Value.Replace("@1", text2 ?? ""), "Television", nameOfUserWhoTyped);
-                            }
-                        }
-                        else
-                        {
-                            if (vs[1].ToLower() == "true")
-                            {
-                                positionSafe = true;
-                            }
-                            if (vs[1].ToLower() == "false")
-                            {
-                                positionSafe = false;
-                            }
-                            string text3 = (positionSafe ? "включено" : "выключено");
-                            DrawString(__instance, Plugin.config.GetLang().main_13.Value.Replace("@1", text3 ?? ""), "Television", nameOfUserWhoTyped);
-                        }
+                        if (vs[1].ToLower() == "true") positionSafe = true;
+                        if (vs[1].ToLower() == "false") positionSafe = false;
+                        string text2 = (positionSafe ? "enabled" : "disabled");
+                        DrawString(__instance, Plugin.config.GetLang().main_13.Value.Replace("@1", text2), "Television", nameOfUserWhoTyped);
                         break;
                     }
                 case "treset":
@@ -960,14 +658,19 @@ namespace Television_Controller
                     break;
                 case "tvolume":
                     {
-                        float volume = tvScript.tvSFX.volume;
-                        float num = (float)(Convert.ToInt32(vs[1]) / 10) * 0.1f;
-                        if (volume != num && (volume < num || volume > num))
+                        // MODIFIED: Check if the player who sent the command is the local player.
+                        // This prevents other players' volume commands from affecting your client.
+                        if (nameOfUserWhoTyped == GameNetworkManager.Instance.localPlayerController.playerUsername)
                         {
-                            tvScript.tvSFX.volume = num;
-                            volumeMain = num;
-                            ChangeVolume(new StreamWriter("YTTV\\cache"));
-                            DrawString(__instance, Plugin.config.GetLang().main_9.Value.Replace("@1", nameOfUserWhoTyped ?? "").Replace("@2", vs[1] + "%"), "Television", nameOfUserWhoTyped);
+                            float volume = tvScript.tvSFX.volume;
+                            float num = (float)(Convert.ToInt32(vs[1]) / 10) * 0.1f;
+                            if (volume != num)
+                            {
+                                tvScript.tvSFX.volume = num;
+                                volumeMain = num;
+                                ChangeVolume(new StreamWriter("YTTV\\cache"));
+                                DrawString(__instance, Plugin.config.GetLang().main_9.Value.Replace("@1", nameOfUserWhoTyped ?? "").Replace("@2", vs[1] + "%"), "Television", nameOfUserWhoTyped);
+                            }
                         }
                         break;
                     }
@@ -978,12 +681,6 @@ namespace Television_Controller
         [HarmonyPrefix]
         private static bool SubmitChat_performed(HUDManager __instance, ref UnityEngine.InputSystem.InputAction.CallbackContext context)
         {
-            //IL_001b: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0020: Unknown result type (might be due to invalid IL or missing references)
-            //IL_0033: Unknown result type (might be due to invalid IL or missing references)
-            //IL_003e: Expected O, but got Unknown
-            //IL_0104: Unknown result type (might be due to invalid IL or missing references)
-            //IL_011a: Unknown result type (might be due to invalid IL or missing references)
             if (!LoadingVideo)
             {
                 __instance.localPlayer = GameNetworkManager.Instance.localPlayerController;
@@ -1040,12 +737,6 @@ namespace Television_Controller
                     ((TMP_Text)chatText).text = ((TMP_Text)chatText).text + "\n" + __instance.ChatMessageHistory[i];
                 }
             }
-        }
-
-        [HarmonyPatch(typeof(HUDManager), "Update")]
-        [HarmonyPostfix]
-        private static void StartPostfixs(HUDManager __instance)
-        {
         }
 
         [HarmonyPatch(typeof(HUDManager), "Start")]
@@ -1144,56 +835,7 @@ namespace Television_Controller
 
             __instance.video.Stop();
             __instance.tvSFX.Stop();
-            return false; // prevent original OnEnable
+            return false;
         }
-    }
-    public static class PluginInfo
-    {
-        public const string PLUGIN_GUID = "Television_Controller";
-
-        public const string PLUGIN_NAME = "Television_Controller";
-
-        // Update this whenever mod version changes
-        public const string PLUGIN_VERSION = "1.0.5";
-    }
-}
-namespace System.Runtime.CompilerServices
-{
-    [CompilerGenerated]
-    [Microsoft.CodeAnalysis.Embedded]
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Event | AttributeTargets.Parameter | AttributeTargets.ReturnValue | AttributeTargets.GenericParameter, AllowMultiple = false, Inherited = false)]
-    internal sealed class NullableAttribute : Attribute
-    {
-        public readonly byte[] NullableFlags;
-
-        public NullableAttribute(byte P_0)
-        {
-            NullableFlags = new byte[1] { P_0 };
-        }
-
-        public NullableAttribute(byte[] P_0)
-        {
-            NullableFlags = P_0;
-        }
-    }
-    [CompilerGenerated]
-    [Microsoft.CodeAnalysis.Embedded]
-    [AttributeUsage(AttributeTargets.Module, AllowMultiple = false, Inherited = false)]
-    internal sealed class RefSafetyRulesAttribute : Attribute
-    {
-        public readonly int Version;
-
-        public RefSafetyRulesAttribute(int P_0)
-        {
-            Version = P_0;
-        }
-    }
-}
-namespace Microsoft.CodeAnalysis
-{
-    [CompilerGenerated]
-    [Microsoft.CodeAnalysis.Embedded]
-    internal sealed class EmbeddedAttribute : Attribute
-    {
     }
 }

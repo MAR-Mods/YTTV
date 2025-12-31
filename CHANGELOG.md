@@ -1,3 +1,9 @@
+## 1.1.0
+- Fixed mod after it broke. It now uses ffmpeg to merge the downloaded audio/video streams
+- /tvolume command should now be client-sided, preventing audio trolling
+- Config file ("YTTV.cfg") can now be accessed from the R2Modman Config editor, instead of having to open file explorer and find the file...
+    - Sorry if you were using something other than English, the mod's going to default to using English with this new version, and you have to change it in the new config
+
 ## 1.0.5
 - Fixed the mod after it stopped working for everyone. Sorry it took me so long (again)...
     - The GitHub shows the specific fix I implemented

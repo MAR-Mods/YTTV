@@ -3,7 +3,7 @@ This mod allows you to play YouTube videos on the buyable television, by specify
 
 A fork of TheByteNinja's [Television Controller Fix](https://thunderstore.io/c/lethal-company/p/TheByteNinja/Television_Controller_Fix/), which itself is a fork of KoderTech's [Television Controller](https://thunderstore.io/c/lethal-company/p/KoderTeh/Television_Controller/) mod. Both of these mods are outdated, so I took it upon myself to make a working version.
 
-Supports English and Russian, just as the original did. You can set the language in a config file (`...\steamapps\common\Lethal Company\YTTV\television_controller.cfg`).
+Supports English and Russian, just as the original did.
 
 ## Commands
 <ul>
