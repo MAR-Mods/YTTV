@@ -1,3 +1,6 @@
+## 1.1.1
+- Fixed an issue with this mod that was preventing some players from seeing interact prompts with anything (unless holding shift to sprint)
+
 ## 1.1.0
 - Fixed mod after it broke. It now uses ffmpeg to merge the downloaded audio/video streams
 - /tvolume command should now be client-sided, preventing audio trolling

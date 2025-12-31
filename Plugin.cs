@@ -39,13 +39,13 @@ namespace YTTV
     {
         public const string PLUGIN_GUID = "MARMods.YTTV";
         public const string PLUGIN_NAME = "YTTV";
-        public const string PLUGIN_VERSION = "1.1.0";
+        public const string PLUGIN_VERSION = "1.1.1";
     }
 }
 
 namespace Television_Controller
 {
-    [BepInPlugin("MARMods.YTTV", "YTTV", "1.1.0")]
+    [BepInPlugin("MARMods.YTTV", "YTTV", "1.1.1")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin instance;
@@ -93,8 +93,6 @@ namespace Television_Controller
                     if (needsUpdate)
                     {
                         Logger.LogInfo($"YTTV: Downloading yt-dlp version {expectedVersion}...");
-                        // 404 FIX: Removed the broken FFmpeg download. 
-                        // yt-dlp download below is valid for version 2025.12.08.
                         DownloadFileSync(
                             new Uri($"https://github.com/yt-dlp/yt-dlp/releases/download/{expectedVersion}/yt-dlp.exe"),
                             ytDlpPath
@@ -108,7 +106,6 @@ namespace Television_Controller
                 }
                 catch (Exception e)
                 {
-                    // This logs the error but keeps the mod alive
                     Logger.LogError($"YTTV: Update failed (Check Internet/VPN): {e.Message}");
                 }
             }).Start();
@@ -126,12 +123,10 @@ namespace Television_Controller
         {
             try
             {
-                // Deletes partial download if it exists to prevent corruption
                 if (File.Exists(filename)) File.Delete(filename);
 
                 using (WebClient webClient = new WebClient())
                 {
-                    // Basic headers to pretend to be a browser (helps prevent some 403s)
                     webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
                     webClient.DownloadFile(uri, filename);
                 }
@@ -221,7 +216,6 @@ namespace Television_Controller
 
         public void GetConfig()
         {
-            // CHANGED: Now uses BepInEx.Paths.ConfigPath to save to BepInEx/config/YTTV.cfg
             string configPath = Path.Combine(Paths.ConfigPath, "YTTV.cfg");
             ConfigFile val = new ConfigFile(configPath, true);
             languages = val.Bind<string>("General", "Languages", "en", "en = English, ru = Русский");
@@ -236,7 +230,6 @@ namespace Television_Controller
     public class YTTV
     {
         public static TVScript tvScript = new TVScript();
-        public static InteractTrigger tigger = new InteractTrigger();
         public static string LastMessage;
         public static bool LoadingVideo = false;
         public static bool LoadingLibrary = false;
@@ -250,194 +243,68 @@ namespace Television_Controller
         public static double volumeMain = 0.0;
 
         [HarmonyPatch(typeof(PlayerControllerB), "SetHoverTipAndCurrentInteractTrigger")]
-        [HarmonyPrefix]
-        public static bool SetHoverTipAndCurrentInteractTrigger(PlayerControllerB __instance, ref RaycastHit ___hit, ref Ray ___interactRay, ref int ___playerMask, ref int ___interactableObjectsMask)
+        [HarmonyPostfix]
+        public static void SetHoverTipAndCurrentInteractTrigger(PlayerControllerB __instance)
         {
-            RaycastHit val;
-            if (!__instance.isGrabbingObjectAnimation)
+            InteractTrigger currentTrigger = __instance.hoveringOverTrigger;
+
+            if (currentTrigger == null || !currentTrigger.interactable) return;
+
+            // Check if this is the TV Trigger
+            if (currentTrigger.transform.parent != null &&
+               (currentTrigger.transform.parent.name.Contains("Television") || currentTrigger.hoverTip.Contains("Switch TV")))
             {
-                ___interactRay = new Ray(((Component)__instance.gameplayCamera).transform.position, ((Component)__instance.gameplayCamera).transform.forward);
-                if (Physics.Raycast(___interactRay, out ___hit, __instance.grabDistance, ___interactableObjectsMask))
+                if (!File.Exists("YTTV\\other\\yt-dlp.exe"))
                 {
-                    val = ___hit;
-                    if (((Component)((RaycastHit)(val)).collider).gameObject.layer != 8)
+                    currentTrigger.hoverTip = Plugin.config.GetLang().main_1.Value;
+                }
+                else
+                {
+                    // Calculate Time Strings
+                    float volume = tvScript.tvSFX.volume;
+                    int curSeconds = (int)curretTime % 3600;
+                    string curH = Mathf.Floor((float)((int)curretTime / 3600)).ToString("00");
+                    string curM = Mathf.Floor((float)(curSeconds / 60)).ToString("00");
+                    string curS = Mathf.Floor((float)(curSeconds % 60)).ToString("00");
+
+                    int totSeconds = (int)totalTime % 3600;
+                    string totH = Mathf.Floor((float)((int)totalTime / 3600)).ToString("00");
+                    string totM = Mathf.Floor((float)(totSeconds / 60)).ToString("00");
+                    string totS = Mathf.Floor((float)(totSeconds % 60)).ToString("00");
+
+                    // Set the tooltip
+                    currentTrigger.hoverTip = Plugin.config.GetLang().main_2.Value
+                        .Replace("@1", $"{Math.Round(volume * 100f)}%")
+                        .Replace("@2", $"{curH}:{curM}:{curS}")
+                        .Replace("@3", $"{totH}:{totM}:{totS}");
+
+                    // Handle Input (PageUp / PageDown)
+                    if (((ButtonControl)Keyboard.current.pageDownKey).wasPressedThisFrame && volume > 0f)
                     {
-                        val = ___hit;
-                        string tag = ((Component)((RaycastHit)(val)).collider).tag;
-                        if (!(tag == "PhysicsProp"))
-                        {
-                            val = ___hit;
-                            if ((Object)((Component)((RaycastHit)(val)).transform).gameObject.GetComponent<InteractTrigger>() != (Object)null)
-                            {
-                                val = ___hit;
-                                InteractTrigger component = ((Component)((RaycastHit)(val)).transform).gameObject.GetComponent<InteractTrigger>();
-                                if (component.hoverTip == "Switch TV: [LMB]")
-                                {
-                                    tigger = component;
-                                }
-                                if ((Object)tigger != (Object)null)
-                                {
-                                    if (!File.Exists("YTTV\\other\\yt-dlp.exe"))
-                                    {
-                                        tigger.hoverTip = Plugin.config.GetLang().main_1.Value;
-                                    }
-                                    else
-                                    {
-                                        float volume = tvScript.tvSFX.volume;
-                                        int num = (int)curretTime % 3600;
-                                        string text = Mathf.Floor((float)((int)curretTime / 3600)).ToString("00");
-                                        string text2 = Mathf.Floor((float)(num / 60)).ToString("00");
-                                        string text3 = Mathf.Floor((float)(num % 60)).ToString("00");
-                                        int num2 = (int)totalTime % 3600;
-                                        string text4 = Mathf.Floor((float)((int)totalTime / 3600)).ToString("00");
-                                        string text5 = Mathf.Floor((float)(num2 / 60)).ToString("00");
-                                        string text6 = Mathf.Floor((float)(num2 % 60)).ToString("00");
-                                        tigger.hoverTip = Plugin.config.GetLang().main_2.Value.Replace("@1", $"{Math.Round(volume * 100f)}%").Replace("@2", text + ":" + text2 + ":" + text3).Replace("@3", text4 + ":" + text5 + ":" + text6);
-                                        if (((ButtonControl)Keyboard.current.pageDownKey).wasPressedThisFrame && volume > 0f)
-                                        {
-                                            float num3 = volume - 0.1f;
-                                            tvScript.tvSFX.volume = num3;
-                                            volumeMain = num3;
-                                            ChangeVolume(new StreamWriter("YTTV\\cache"));
-                                        }
-                                        if (((ButtonControl)Keyboard.current.pageUpKey).wasPressedThisFrame && volume < 1f)
-                                        {
-                                            float num4 = volume + 0.1f;
-                                            tvScript.tvSFX.volume = num4;
-                                            volumeMain = num4;
-                                            ChangeVolume(new StreamWriter("YTTV\\cache"));
-                                        }
-                                    }
-                                }
-                            }
-                            if (tag == "InteractTrigger")
-                            {
-                                val = ___hit;
-                                InteractTrigger component2 = ((Component)((RaycastHit)(val)).transform).gameObject.GetComponent<InteractTrigger>();
-                                if ((Object)component2 != (Object)__instance.previousHoveringOverTrigger && (Object)__instance.previousHoveringOverTrigger != (Object)null)
-                                {
-                                    __instance.previousHoveringOverTrigger.isBeingHeldByPlayer = false;
-                                }
-                                if (!((Object)component2 == (Object)null))
-                                {
-                                    __instance.hoveringOverTrigger = component2;
-                                    if (!component2.interactable)
-                                    {
-                                        __instance.cursorIcon.sprite = component2.disabledHoverIcon;
-                                        ((Behaviour)__instance.cursorIcon).enabled = (Object)component2.disabledHoverIcon != (Object)null;
-                                        ((TMP_Text)__instance.cursorTip).text = component2.disabledHoverTip;
-                                    }
-                                    else if (component2.isPlayingSpecialAnimation)
-                                    {
-                                        ((Behaviour)__instance.cursorIcon).enabled = false;
-                                        ((TMP_Text)__instance.cursorTip).text = "";
-                                    }
-                                    else if (__instance.isHoldingInteract)
-                                    {
-                                        if (__instance.twoHanded)
-                                        {
-                                            ((TMP_Text)__instance.cursorTip).text = "[Hands full]";
-                                        }
-                                        else if (!string.IsNullOrEmpty(component2.holdTip))
-                                        {
-                                            ((TMP_Text)__instance.cursorTip).text = component2.holdTip;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        ((Behaviour)__instance.cursorIcon).enabled = true;
-                                        __instance.cursorIcon.sprite = component2.hoverIcon;
-                                        ((TMP_Text)__instance.cursorTip).text = component2.hoverTip;
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            if (FirstEmptyItemSlot(__instance) == -1)
-                            {
-                                ((TMP_Text)__instance.cursorTip).text = "Inventory full!";
-                            }
-                            else
-                            {
-                                val = ___hit;
-                                GrabbableObject component3 = ((Component)((RaycastHit)(val)).collider).gameObject.GetComponent<GrabbableObject>();
-                                if (!GameNetworkManager.Instance.gameHasStarted && !component3.itemProperties.canBeGrabbedBeforeGameStart && (Object)StartOfRound.Instance.testRoom == (Object)null)
-                                {
-                                    ((TMP_Text)__instance.cursorTip).text = "(Cannot pickup until ship is landed)";
-                                }
-                                if ((Object)component3 != (Object)null && !string.IsNullOrEmpty(component3.customGrabTooltip))
-                                {
-                                    ((TMP_Text)__instance.cursorTip).text = component3.customGrabTooltip;
-                                }
-                            }
-                            ((Behaviour)__instance.cursorIcon).enabled = true;
-                            __instance.cursorIcon.sprite = __instance.grabItemIcon;
-                        }
-                        goto IL_05ad;
+                        float newVol = volume - 0.1f;
+                        if (newVol < 0f) newVol = 0f;
+
+                        tvScript.tvSFX.volume = newVol;
+                        volumeMain = newVol;
+                        ChangeVolume(new StreamWriter("YTTV\\cache"));
+                    }
+                    if (((ButtonControl)Keyboard.current.pageUpKey).wasPressedThisFrame && volume < 1f)
+                    {
+                        float newVol = volume + 0.1f;
+                        if (newVol > 1f) newVol = 1f;
+
+                        tvScript.tvSFX.volume = newVol;
+                        volumeMain = newVol;
+                        ChangeVolume(new StreamWriter("YTTV\\cache"));
                     }
                 }
-                ((Behaviour)__instance.cursorIcon).enabled = false;
-                ((TMP_Text)__instance.cursorTip).text = "";
-                if ((Object)__instance.hoveringOverTrigger != (Object)null)
-                {
-                    __instance.previousHoveringOverTrigger = __instance.hoveringOverTrigger;
-                }
-                __instance.hoveringOverTrigger = null;
             }
-            goto IL_05ad;
-        IL_05ad:
-            if (StartOfRound.Instance.localPlayerUsingController)
-            {
-                StringBuilder stringBuilder = new StringBuilder(((TMP_Text)__instance.cursorTip).text);
-                stringBuilder.Replace("[E]", "[X]");
-                stringBuilder.Replace("[LMB]", "[X]");
-                stringBuilder.Replace("[RMB]", "[R-Trigger]");
-                stringBuilder.Replace("[F]", "[R-Shoulder]");
-                stringBuilder.Replace("[Z]", "[L-Shoulder]");
-                ((TMP_Text)__instance.cursorTip).text = stringBuilder.ToString();
-            }
-            else
-            {
-                ((TMP_Text)__instance.cursorTip).text = ((TMP_Text)__instance.cursorTip).text.Replace("[LMB]", "[E]");
-            }
-            if (!__instance.isFreeCamera && Physics.Raycast(___interactRay, out ___hit, 5f, ___playerMask))
-            {
-                val = ___hit;
-                PlayerControllerB component4 = ((Component)((RaycastHit)(val)).collider).gameObject.GetComponent<PlayerControllerB>();
-                if ((Object)component4 != (Object)null)
-                {
-                    component4.ShowNameBillboard();
-                }
-            }
-            return false;
         }
 
         public static void ChangeVolume(StreamWriter streamWriter)
         {
             streamWriter.WriteLine(volumeMain.ToString());
             streamWriter.Close();
-        }
-
-        public static int FirstEmptyItemSlot(PlayerControllerB __instance)
-        {
-            int result = -1;
-            if ((Object)__instance.ItemSlots[__instance.currentItemSlot] == (Object)null)
-            {
-                result = __instance.currentItemSlot;
-            }
-            else
-            {
-                for (int i = 0; i < __instance.ItemSlots.Length; i++)
-                {
-                    if ((Object)__instance.ItemSlots[i] == (Object)null)
-                    {
-                        result = i;
-                        break;
-                    }
-                }
-            }
-            return result;
         }
 
         [HarmonyPatch(typeof(HUDManager), "AddPlayerChatMessageServerRpc")]
@@ -540,11 +407,7 @@ namespace Television_Controller
                             Process process = new Process();
                             process.StartInfo.FileName = "YTTV\\other\\yt-dlp.exe";
                             process.StartInfo.UseShellExecute = false;
-
-                            // ARGUMENT UPDATE:
-                            // The "/b[ext=mp4]" part is the fallback that allows this to work without FFmpeg.
                             process.StartInfo.Arguments = "--cookies \"cookies.txt\" -f \"bv*[height<=360][ext=mp4]+ba[ext=m4a]/b[height<=360][ext=mp4]/b[ext=mp4]\" --force-ipv4 -N 4 " + vs[1] + " -o test.%(ext)s";
-
                             process.StartInfo.WorkingDirectory = "YTTV\\other";
                             process.StartInfo.CreateNoWindow = true;
                             process.Start();
@@ -658,8 +521,6 @@ namespace Television_Controller
                     break;
                 case "tvolume":
                     {
-                        // MODIFIED: Check if the player who sent the command is the local player.
-                        // This prevents other players' volume commands from affecting your client.
                         if (nameOfUserWhoTyped == GameNetworkManager.Instance.localPlayerController.playerUsername)
                         {
                             float volume = tvScript.tvSFX.volume;

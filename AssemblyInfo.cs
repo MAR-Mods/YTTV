@@ -30,8 +30,8 @@ using System.Runtime.InteropServices;
 //      Revision
 //
 // Update this whenever mod version changes
-[assembly: AssemblyInformationalVersion("1.1.0")]
+[assembly: AssemblyInformationalVersion("1.1.1")]
 // Update this whenever mod version changes
-[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
 // Update this whenever mod version changes
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
