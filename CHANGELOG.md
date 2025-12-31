@@ -1,3 +1,6 @@
+## 1.1.2
+- Updated the mod so that it automatically checks the yt-dlp version, and downloads the latest version (if there's a new one)
+
 ## 1.1.1
 - Fixed an issue with this mod that was preventing some players from seeing interact prompts with anything (unless holding shift to sprint)
 

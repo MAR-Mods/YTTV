@@ -3,7 +3,7 @@ This mod allows you to play YouTube videos on the buyable television, by specify
 
 A fork of TheByteNinja's [Television Controller Fix](https://thunderstore.io/c/lethal-company/p/TheByteNinja/Television_Controller_Fix/), which itself is a fork of KoderTech's [Television Controller](https://thunderstore.io/c/lethal-company/p/KoderTeh/Television_Controller/) mod. Both of these mods are outdated, so I took it upon myself to make a working version.
 
-Supports English and Russian, just as the original did.
+Supports English and Russian (Русский), just as the original did.
 
 ## Commands
 <ul>
@@ -24,12 +24,6 @@ Here are some tips to alleviate this:
 <li> Wait for EVERYONE watching to have gotten "<em>The video was uploaded to the television</em>" in chat before playing a video. </li>
 <li> Turn the TV off and on again. </li>
 </ul>
-
-## How did you make this?
-I used Visual Studio. For the project, I picked Class Library (.NET Framework), and set the framework to .NET Framework 4.8. Essentially all I really did (besides fixing TheByteNinja's decompiled code) was change the link that downloads yt-dlp.exe to be the latest version (in the original mods, these are outdated, hence why they don't work anymore).
-<br> <br>
-Here's the line you should change to update the [yt-dlp](https://github.com/yt-dlp/yt-dlp) version: `string expectedVersion = "XXXX.XX.XX";` replace the X's with the yt-dlp release version.
-<br>
 
 ## Credits
 <em> Television Controller </em>

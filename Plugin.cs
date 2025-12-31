@@ -39,13 +39,13 @@ namespace YTTV
     {
         public const string PLUGIN_GUID = "MARMods.YTTV";
         public const string PLUGIN_NAME = "YTTV";
-        public const string PLUGIN_VERSION = "1.1.1";
+        public const string PLUGIN_VERSION = "1.1.2";
     }
 }
 
 namespace Television_Controller
 {
-    [BepInPlugin("MARMods.YTTV", "YTTV", "1.1.1")]
+    [BepInPlugin("MARMods.YTTV", "YTTV", "1.1.2")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin instance;
@@ -76,30 +76,41 @@ namespace Television_Controller
 
             string ytDlpPath = Path.Combine("YTTV", "other", "yt-dlp.exe");
             string versionPath = Path.Combine("YTTV", "other", "yt-dlp.version");
-            string expectedVersion = "2025.12.08";
 
+            // Updated Logic: Check GitHub for latest version tag
             new Thread(() =>
             {
                 try
                 {
+                    // Dynamically get the latest version tag from GitHub
+                    string latestVersion = GetLatestYtDlpTag();
+
+                    if (string.IsNullOrEmpty(latestVersion))
+                    {
+                        Logger.LogWarning("YTTV: Could not determine latest version (GitHub unreachable?). Skipping update check.");
+                        // Proceed without updating if we can't check
+                        Logger.LogInfo("YTTV: Ready (Offline Mode).");
+                        return;
+                    }
+
                     bool needsUpdate = true;
                     if (File.Exists(ytDlpPath) && File.Exists(versionPath))
                     {
                         string localVersion = File.ReadAllText(versionPath).Trim();
-                        if (localVersion == expectedVersion)
+                        if (localVersion == latestVersion)
                             needsUpdate = false;
                     }
 
                     if (needsUpdate)
                     {
-                        Logger.LogInfo($"YTTV: Downloading yt-dlp version {expectedVersion}...");
+                        Logger.LogInfo($"YTTV: Downloading yt-dlp version {latestVersion}...");
                         DownloadFileSync(
-                            new Uri($"https://github.com/yt-dlp/yt-dlp/releases/download/{expectedVersion}/yt-dlp.exe"),
+                            new Uri($"https://github.com/yt-dlp/yt-dlp/releases/download/{latestVersion}/yt-dlp.exe"),
                             ytDlpPath
                         );
 
                         if (File.Exists(ytDlpPath))
-                            File.WriteAllText(versionPath, expectedVersion);
+                            File.WriteAllText(versionPath, latestVersion);
                     }
 
                     Logger.LogInfo("YTTV: Ready.");
@@ -112,6 +123,35 @@ namespace Television_Controller
 
             HarmonyLib = new Harmony("com.marmods.YTTV");
             HarmonyLib.PatchAll(typeof(YTTV));
+        }
+
+        // New helper method to fetch the tag
+        private string GetLatestYtDlpTag()
+        {
+            try
+            {
+                // We request the "latest" release page. GitHub will redirect us to the specific tag URL.
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create("https://github.com/yt-dlp/yt-dlp/releases/latest");
+                request.Method = "HEAD";
+                request.AllowAutoRedirect = false; // Stop so we can read the redirect URL
+                request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"; // GitHub requires a User-Agent
+
+                using (WebResponse response = request.GetResponse())
+                {
+                    string location = response.Headers["Location"];
+                    if (!string.IsNullOrEmpty(location))
+                    {
+                        // The URL looks like: .../releases/tag/2025.01.12
+                        // We split by '/' and take the last part to get "2025.01.12"
+                        return location.Substring(location.LastIndexOf('/') + 1);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"YTTV: Failed to fetch latest version tag: {ex.Message}");
+            }
+            return null;
         }
 
         public void WriteLogo()
